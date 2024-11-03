@@ -38,24 +38,14 @@
 (defmethod jsown:to-json ((word-info ichiran/dict:word-info))
   (jsown:to-json (ichiran/dict:word-info-gloss-json word-info)))
 
-(defun validate-connection ()
-  "Test if the database connection is still valid"
-  (handler-case
-      (postmodern:query "SELECT 1")
-    (error (e)
-      (format t "~&Connection validation failed: ~A~%" e)
-      nil)))
-
 (defmacro with-thread-connection (&body body)
   `(progn
      (sb-thread:wait-on-semaphore *request-semaphore*)
      (unwind-protect
          (let ((ichiran/conn:*connection* (connection-spec *acceptor*)))
            (handler-case
-               (postmodern:with-connection ichiran/conn:*connection*
-                 ;; Validate connection before use
-                 (unless (validate-connection)
-                   (postmodern:reconnect))
+               (postmodern:with-connection 
+                   (append ichiran/conn:*connection* '(:pooled-p t))
                  ,@body)
              (error (e)
                (format t "~&Error in request: ~A~%" e)
@@ -101,13 +91,7 @@
         (make-instance 'ichiran-acceptor 
                       :port port
                       :address "0.0.0.0"
-                      :connection-spec (append ichiran/conn:*connection*
-                                             '(:client-min-messages :notice
-                                               :application-name "ichiran-web"
-                                               :keepalives 1
-                                               :keepalives-idle 60
-                                               :keepalives-interval 30
-                                               :keepalives-count 3))))
+                      :connection-spec ichiran/conn:*connection*))
   (push (create-prefix-dispatcher "/health" 'health-check)
         *dispatch-table*)
   (start *server*)
