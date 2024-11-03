@@ -108,5 +108,5 @@
 
 (defun stop-server ()
   (when *server*
-    (stop-server))
+    (stop *server*))
   (setf *server* nil))
