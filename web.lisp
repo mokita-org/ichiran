@@ -52,13 +52,10 @@
      (unwind-protect
          (let ((ichiran/conn:*connection* (connection-spec *acceptor*)))
            (handler-case
-               (postmodern:with-connection 
-                   (append ichiran/conn:*connection* '(:pooled-p t))
+               (postmodern:with-connection ichiran/conn:*connection*
                  ;; Validate connection before use
                  (unless (validate-connection)
-                   (postmodern:reconnect)
-                   (unless (validate-connection)
-                     (error "Failed to establish database connection")))
+                   (postmodern:reconnect))
                  ,@body)
              (error (e)
                (format t "~&Error in request: ~A~%" e)
