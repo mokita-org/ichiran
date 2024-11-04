@@ -9,6 +9,8 @@
 (defparameter *max-concurrent-requests* 10)
 (defparameter *request-semaphore* (sb-thread:make-semaphore :count *max-concurrent-requests*))
 (defparameter *server-ready* nil)
+(defparameter *db-pool-max-size* 5)
+(defparameter *db-pool-max-age* 300)
 
 (defclass ichiran-acceptor (easy-acceptor)
   ((cache :initform (make-hash-table :test 'equal) :accessor acceptor-cache)
@@ -45,8 +47,20 @@
          (let ((ichiran/conn:*connection* (connection-spec *acceptor*)))
            (handler-case
                (postmodern:with-connection 
-                   (append ichiran/conn:*connection* '(:pooled-p t))
-                 ,@body)
+                   (append ichiran/conn:*connection* 
+                           `(:pooled-p t 
+                             :max-pool-size ,*db-pool-max-size*
+                             :max-pool-age ,*db-pool-max-age*))
+                 (handler-bind
+                     ((cl-postgres:database-connection-error
+                       (lambda (e)
+                         ;; Clear the entire connection pool on first error
+                         (format t "~&Connection error, clearing pool: ~A~%" e)
+                         (postmodern:clear-connection-pool)
+                         ;; Immediately retry with a fresh connection
+                         (return-from with-thread-connection
+                           (progn ,@body)))))
+                   ,@body))
              (error (e)
                (format t "~&Error in request: ~A~%" e)
                (signal e))))
