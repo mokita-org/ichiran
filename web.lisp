@@ -11,6 +11,7 @@
 (defparameter *server-ready* nil)
 (defparameter *db-pool-max-size* 5)
 (defparameter *db-pool-max-age* 300)
+(defparameter *connection-timeout* 300) ; 5 minutes in seconds
 
 (defclass ichiran-acceptor (easy-acceptor)
   ((cache :initform (make-hash-table :test 'equal) :accessor acceptor-cache)
@@ -47,6 +48,12 @@
          (let ((ichiran/conn:*connection* (connection-spec *acceptor*)))
            (handler-case
                (postmodern:with-connection ichiran/conn:*connection*
+                 ;; Test the connection before use
+                 (handler-case
+                     (postmodern:query "SELECT 1")
+                   (error (e)
+                     (format t "~&Connection test failed, reconnecting: ~A~%" e)
+                     (postmodern:clear-connection-pool)))
                  (handler-bind
                      ((cl-postgres:database-connection-error
                        (lambda (e)
