@@ -96,10 +96,25 @@
     (when text
       (find-word-info-json text :reading reading))))
 
+(defun test-db-connection ()
+  "Test database connection and return T if successful"
+  (handler-case
+      (postmodern:with-connection (connection-spec *acceptor*)
+        (postmodern:query "SELECT 1")
+        t)
+    (error (e)
+      (format t "~&Health check detected DB issue: ~A~%" e)
+      (postmodern:clear-connection-pool)
+      nil)))
+
 (defun health-check ()
   (setf (hunchentoot:content-type*) "application/json")
   (if *server-ready*
-      "{\"status\": \"ok\"}"
+      (if (test-db-connection)
+          "{\"status\": \"ok\"}"
+          (progn
+            (setf (hunchentoot:return-code*) 503)
+            "{\"status\": \"database error\"}"))
       (progn
         (setf (hunchentoot:return-code*) 503)
         "{\"status\": \"initializing\"}")))
