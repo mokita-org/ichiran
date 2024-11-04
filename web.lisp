@@ -46,11 +46,7 @@
      (unwind-protect
          (let ((ichiran/conn:*connection* (connection-spec *acceptor*)))
            (handler-case
-               (postmodern:with-connection 
-                   (append ichiran/conn:*connection* 
-                           `(:pooled-p t 
-                             :max-pool-size ,*db-pool-max-size*
-                             :max-pool-age ,*db-pool-max-age*))
+               (postmodern:with-connection ichiran/conn:*connection*
                  (handler-bind
                      ((cl-postgres:database-connection-error
                        (lambda (e)
