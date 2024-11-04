@@ -57,9 +57,8 @@
                          ;; Clear the entire connection pool on first error
                          (format t "~&Connection error, clearing pool: ~A~%" e)
                          (postmodern:clear-connection-pool)
-                         ;; Immediately retry with a fresh connection
-                         (return-from with-thread-connection
-                           (progn ,@body)))))
+                         ;; Need to wrap the retry in a block that exists
+                         (progn ,@body))))
                    ,@body))
              (error (e)
                (format t "~&Error in request: ~A~%" e)
