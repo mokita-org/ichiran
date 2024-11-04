@@ -6,10 +6,10 @@
 
 (defvar *server* nil)
 (defvar *default-port* 8080)
-(defparameter *max-concurrent-requests* 10)
+(defparameter *max-concurrent-requests* 50)
 (defparameter *request-semaphore* (sb-thread:make-semaphore :count *max-concurrent-requests*))
 (defparameter *server-ready* nil)
-(defparameter *db-pool-max-size* 5)
+(defparameter *db-pool-max-size* 20)
 (defparameter *db-pool-max-age* 300)
 (defparameter *connection-timeout* 300) ; 5 minutes in seconds
 
