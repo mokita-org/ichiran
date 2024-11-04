@@ -50,11 +50,17 @@
                  (handler-bind
                      ((cl-postgres:database-connection-error
                        (lambda (e)
-                         ;; Clear the entire connection pool on first error
                          (format t "~&Connection error, clearing pool: ~A~%" e)
                          (postmodern:clear-connection-pool)
-                         ;; Need to wrap the retry in a block that exists
-                         (progn ,@body))))
+                         ;; Try to reconnect once
+                         (handler-case
+                             (progn
+                               (format t "~&Attempting to reconnect...~%")
+                               (postmodern:with-connection ichiran/conn:*connection*
+                                 ,@body))
+                           (error (e2)
+                             (format t "~&Reconnection failed: ~A~%" e2)
+                             (signal e2))))))
                    ,@body))
              (error (e)
                (format t "~&Error in request: ~A~%" e)
@@ -96,6 +102,8 @@
     (stop-server))
   (setf *server-ready* nil)
   (ichiran/conn:load-settings :keep-connection t)
+  (postmodern:clear-connection-pool)
+  (postmodern:set-pool-size *db-pool-max-size*)
   (setf *server* 
         (make-instance 'ichiran-acceptor 
                       :port port
