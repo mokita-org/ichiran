@@ -125,7 +125,7 @@
   (setf *server-ready* nil)
   (ichiran/conn:load-settings :keep-connection t)
   (postmodern:clear-connection-pool)
-  (postmodern:set-pool-size *db-pool-max-size*)
+  (setf postmodern:*max-pool-size* *db-pool-max-size*)
   (setf *server* 
         (make-instance 'ichiran-acceptor 
                       :port port
