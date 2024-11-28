@@ -40,11 +40,14 @@
 
 (defun get-read-connection ()
   "Get a random read replica connection spec from *connections*"
-  (let ((replicas (cdr (assoc :replica ichiran/conn:*connections*))))
-    (or (car replicas) ichiran/conn:*connection*)))
+  (let* ((replicas (cdr (assoc :replica ichiran/conn:*connections*)))
+         (conn (or (car replicas) ichiran/conn:*connection*)))
+    (format t "~&Using connection: ~A~%" (getf (cdr (cdddr conn)) :application-name))
+    conn))
 
 (defmacro with-balanced-connection (read-only &body body)
   `(progn
+     (format t "~&Request type: ~A~%" ,(if read-only "READ" "WRITE"))
      (sb-thread:wait-on-semaphore *request-semaphore*)
      (unwind-protect
          (handler-case
