@@ -58,11 +58,12 @@
              (let ((conn-spec (if ,read-only
                                  (get-read-connection)
                                  ichiran/conn:*connection*)))
-               (postmodern:with-connection conn-spec
-                 ,@body))
+               (ichiran/conn:with-log (#p"/tmp/ichiran-queries.log")
+                 (postmodern:with-connection conn-spec
+                   ,@body)))
            (cl-postgres:database-connection-error (e)
              (format t "~&Database connection error: ~A~%" e)
-             (postmodern:clear-connection-pool)  ; Only clear on errors
+             (postmodern:clear-connection-pool)
              (setf (hunchentoot:return-code*) 503)
              (json-response 
               (jsown:new-js
