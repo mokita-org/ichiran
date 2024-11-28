@@ -41,7 +41,9 @@
 (defun get-read-connection ()
   "Get a random read replica connection spec from *connections*"
   (let* ((replicas (cdr (assoc :replica ichiran/conn:*connections*)))
-         (conn (or (car replicas) ichiran/conn:*connection*)))
+         (conn (if replicas
+                  (car (car replicas))  ; Unwrap the extra list level
+                  ichiran/conn:*connection*)))
     (format t "~&Using connection: ~A~%" (getf (cdr (cdddr conn)) :application-name))
     conn))
 
