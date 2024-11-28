@@ -39,11 +39,12 @@
   (jsown:to-json (ichiran/dict:word-info-gloss-json word-info)))
 
 (defun get-read-connection ()
-  "Get a random read replica connection spec from *connections*"
-  (let* ((replicas (cdr (assoc :replica ichiran/conn:*connections*)))
-         (conn (if replicas
-                  (car (car replicas))  ; Unwrap the extra list level
-                  ichiran/conn:*connection*)))
+  "Get a random connection spec from primary or replica for load balancing"
+  (let* ((primary (cdr (assoc :primary ichiran/conn:*connections*)))
+         (replicas (cdr (assoc :replica ichiran/conn:*connections*)))
+         (all-connections (append (list primary) 
+                                (list (car (car replicas)))))
+         (conn (nth (random (length all-connections)) all-connections)))
     (format t "~&Using connection: ~A~%" (getf (cdr (cdddr conn)) :application-name))
     conn))
 
