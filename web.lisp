@@ -38,28 +38,24 @@
 (defmethod jsown:to-json ((word-info ichiran/dict:word-info))
   (jsown:to-json (ichiran/dict:word-info-gloss-json word-info)))
 
-(defmacro with-thread-connection (&body body)
+(defun get-read-connection ()
+  "Get a random read replica connection spec from *connections*"
+  (let ((replicas (cdr (assoc :replica ichiran/conn:*connections*))))
+    (or (car replicas) ichiran/conn:*connection*)))
+
+(defmacro with-balanced-connection (read-only &body body)
   `(progn
      (sb-thread:wait-on-semaphore *request-semaphore*)
      (unwind-protect
          (handler-case
-             (progn
-               ;; Clear any potentially dead connections from the pool
-               (postmodern:clear-connection-pool)
-               (postmodern:with-connection 
-                   (list (first ichiran/conn:*connection*)
-                         (second ichiran/conn:*connection*)
-                         (third ichiran/conn:*connection*)
-                         (fourth ichiran/conn:*connection*)
-                         :port (getf (nthcdr 4 ichiran/conn:*connection*) :port)
-                         :pooled-p t
-                         :use-ssl (getf (nthcdr 4 ichiran/conn:*connection*) :use-ssl)
-                         :application-name (getf (nthcdr 4 ichiran/conn:*connection*) :application-name))
+             (let ((conn-spec (if ,read-only
+                                 (get-read-connection)
+                                 ichiran/conn:*connection*)))
+               (postmodern:with-connection conn-spec
                  ,@body))
            (cl-postgres:database-connection-error (e)
              (format t "~&Database connection error: ~A~%" e)
-             ;; Clear the pool again if we got a connection error
-             (postmodern:clear-connection-pool)
+             (postmodern:clear-connection-pool)  ; Only clear on errors
              (setf (hunchentoot:return-code*) 503)
              (json-response 
               (jsown:new-js
@@ -75,26 +71,27 @@
        (sb-thread:signal-semaphore *request-semaphore*))))
 
 (define-easy-handler (analyze :uri "/api/analyze") (text info full)
-  (with-thread-connection
+  (with-balanced-connection t
     (json-response 
-      (when text
-        (cond
-          (full
-           (let* ((limit-value 1)
-                  (result (romanize* text :limit limit-value)))
+     (when text
+       (cond
+         (full
+          (let* ((limit-value 1)
+                 (result (romanize* text :limit limit-value)))
              result))
-          (info
-           (multiple-value-bind (romaji info) 
-               (romanize text :with-info t)
-             (format-word-info romaji info)))
-          (t
-           (jsown:new-js
-             ("romaji" (romanize text)))))))))
+         (info
+          (multiple-value-bind (romaji info) 
+              (romanize text :with-info t)
+            (format-word-info romaji info)))
+         (t
+          (jsown:new-js
+            ("romaji" (romanize text)))))))))
 
 (define-easy-handler (word-info :uri "/api/word-info") (text reading)
-  (json-response
-    (when text
-      (find-word-info-json text :reading reading))))
+  (with-balanced-connection t
+    (json-response
+      (when text
+        (find-word-info-json text :reading reading)))))
 
 (defun health-check ()
   (setf (hunchentoot:content-type*) "application/json")
