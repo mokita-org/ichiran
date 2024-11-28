@@ -87,9 +87,11 @@
 
 
 (defmacro with-log ((path &key (if-exists :append)) &body body)
-  (alexandria:with-gensyms (stream)
+  (alexandria:with-gensyms (stream conn-info)
     `(with-open-file (,stream ,path :direction :output :if-does-not-exist :create :if-exists ,if-exists)
-       (let ((cl-postgres:*query-log* ,stream))
+       (let* ((cl-postgres:*query-log* ,stream)
+              (,conn-info (getf (cdr (cdddr postmodern:*database*)) :application-name)))
+         (format ,stream "~&Connection: ~A~%" ,conn-info)
          ,@body))))
 
 
