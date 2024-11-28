@@ -45,6 +45,8 @@
          (all-connections (list primary (car replicas)))
          (conn (nth (random (length all-connections)) all-connections)))
     (format t "~&Using connection: ~A~%" (getf (cdr (cdddr conn)) :application-name))
+    (when *debug*
+      (format t "~&Connection spec: ~S~%" conn))
     conn))
 
 (defmacro with-balanced-connection (read-only &body body)
