@@ -40,10 +40,9 @@
 
 (defun get-read-connection ()
   "Get a random connection spec from primary or replica for load balancing"
-  (let* ((primary (cdr (assoc :primary ichiran/conn:*connections*)))
-         (replicas (cdr (assoc :replica ichiran/conn:*connections*)))
-         (all-connections (append (list primary) 
-                                (list (car (car replicas)))))
+  (let* ((primary (car (cdr (assoc :primary ichiran/conn:*connections*))))
+         (replicas (car (cdr (assoc :replica ichiran/conn:*connections*))))
+         (all-connections (list primary (car replicas)))
          (conn (nth (random (length all-connections)) all-connections)))
     (format t "~&Using connection: ~A~%" (getf (cdr (cdddr conn)) :application-name))
     conn))
