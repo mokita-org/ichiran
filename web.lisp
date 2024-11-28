@@ -44,39 +44,39 @@
          (replicas (car (cdr (assoc :replica ichiran/conn:*connections*))))
          (all-connections (list primary (car replicas)))
          (conn (nth (random (length all-connections)) all-connections)))
-    (format t "~&Using connection: ~A~%" (getf (cdr (cdddr conn)) :application-name))
-    (when *debug*
-      (format t "~&Connection spec: ~S~%" conn))
+    (format t "~&[~A] Using connection: ~A~%" 
+            (local-time:format-timestring nil (local-time:now))
+            (getf (cdr (cdddr conn)) :application-name))
     conn))
 
 (defmacro with-balanced-connection (read-only &body body)
   `(progn
-     (format t "~&Request type: ~A~%" ,(if read-only "READ" "WRITE"))
-     (sb-thread:wait-on-semaphore *request-semaphore*)
-     (unwind-protect
-         (handler-case
-             (let ((conn-spec (if ,read-only
-                                 (get-read-connection)
-                                 ichiran/conn:*connection*)))
-               (ichiran/conn:with-log (#p"/tmp/ichiran-queries.log")
+     (let ((start-time (get-internal-real-time)))
+       (format t "~&[~A] Request type: ~A~%" 
+               (local-time:format-timestring nil (local-time:now))
+               ,(if read-only "READ" "WRITE"))
+       (sb-thread:wait-on-semaphore *request-semaphore*)
+       (unwind-protect
+           (handler-case
+               (let ((conn-spec (if ,read-only
+                                   (get-read-connection)
+                                   ichiran/conn:*connection*)))
                  (postmodern:with-connection conn-spec
-                   ,@body)))
-           (cl-postgres:database-connection-error (e)
-             (format t "~&Database connection error: ~A~%" e)
-             (postmodern:clear-connection-pool)
-             (setf (hunchentoot:return-code*) 503)
-             (json-response 
-              (jsown:new-js
-                ("error" "Database connection error")
-                ("message" (princ-to-string e)))))
-           (error (e)
-             (format t "~&Error in request: ~A~%" e)
-             (setf (hunchentoot:return-code*) 500)
-             (json-response 
-              (jsown:new-js
-                ("error" "Internal server error")
-                ("message" (princ-to-string e))))))
-       (sb-thread:signal-semaphore *request-semaphore*))))
+                   (let ((result (progn ,@body)))
+                     (format t "~&[~A] Query time: ~Ams~%" 
+                            (local-time:format-timestring nil (local-time:now))
+                            (/ (- (get-internal-real-time) start-time) 
+                               internal-time-units-per-second 
+                               1000))
+                     result)))
+               (error (e)
+                 (format t "~&Error in request: ~A~%" e)
+                 (setf (hunchentoot:return-code*) 500)
+                 (json-response 
+                  (jsown:new-js
+                    ("error" "Internal server error")
+                    ("message" (princ-to-string e))))))
+         (sb-thread:signal-semaphore *request-semaphore*)))))
 
 (define-easy-handler (analyze :uri "/api/analyze") (text info full)
   (with-balanced-connection t
