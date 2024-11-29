@@ -39,22 +39,16 @@
   (jsown:to-json (ichiran/dict:word-info-gloss-json word-info)))
 
 (defun get-read-connection ()
-  "Get a random connection spec from primary or replica for load balancing"
-  (let* ((primary (car (cdr (assoc :primary ichiran/conn:*connections*))))
-         (replicas (car (cdr (assoc :replica ichiran/conn:*connections*))))
-         (all-connections (list primary (car replicas)))
-         (conn (nth (random (length all-connections)) all-connections)))
-    (format t "~&[~A] Using connection: ~A~%" 
-            (local-time:format-timestring nil (local-time:now))
-            (getf (cdr (cdddr conn)) :application-name))
+  "Always use replica for reads unless unavailable"
+  (let* ((replicas (car (cdr (assoc :replica ichiran/conn:*connections*))))
+         (primary (car (cdr (assoc :primary ichiran/conn:*connections*))))
+         (conn (or (car replicas) primary)))
+    (format t "~&Using ~A~%" (getf (cdr (cdddr conn)) :application-name))
     conn))
 
 (defmacro with-balanced-connection (read-only &body body)
   `(progn
      (let ((start-time (get-internal-real-time)))
-       (format t "~&[~A] Request type: ~A~%" 
-               (local-time:format-timestring nil (local-time:now))
-               ,(if read-only "READ" "WRITE"))
        (sb-thread:wait-on-semaphore *request-semaphore*)
        (unwind-protect
            (handler-case
@@ -63,8 +57,7 @@
                                    ichiran/conn:*connection*)))
                  (postmodern:with-connection conn-spec
                    (let ((result (progn ,@body)))
-                     (format t "~&[~A] Query time: ~Ams~%" 
-                            (local-time:format-timestring nil (local-time:now))
+                     (format t "~&Query time: ~Ams~%" 
                             (/ (- (get-internal-real-time) start-time) 
                                internal-time-units-per-second 
                                1000))
