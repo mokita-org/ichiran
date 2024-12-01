@@ -98,7 +98,7 @@
         (if (and *server-ready*
                  ;; Test full analysis path including dictionary lookups
                  (multiple-value-bind (romaji info) 
-                     (romanize* "テスト" :with-info t)
+                     (romanize "テスト" :with-info t)
                    (and romaji info)))
             "{\"status\": \"ok\"}"
             (progn
