@@ -43,23 +43,18 @@
      (sb-thread:wait-on-semaphore *request-semaphore*)
      (unwind-protect
          (handler-case
-             (progn
-               ;; Clear any potentially dead connections from the pool
-               (postmodern:clear-connection-pool)
-               (postmodern:with-connection 
-                   (list (first ichiran/conn:*connection*)
-                         (second ichiran/conn:*connection*)
-                         (third ichiran/conn:*connection*)
-                         (fourth ichiran/conn:*connection*)
-                         :port (getf (nthcdr 4 ichiran/conn:*connection*) :port)
-                         :pooled-p t
-                         :use-ssl (getf (nthcdr 4 ichiran/conn:*connection*) :use-ssl)
-                         :application-name (getf (nthcdr 4 ichiran/conn:*connection*) :application-name))
-                 ,@body))
+             (postmodern:with-connection 
+                 (list (first ichiran/conn:*connection*)
+                       (second ichiran/conn:*connection*)
+                       (third ichiran/conn:*connection*)
+                       (fourth ichiran/conn:*connection*)
+                       :port (getf (nthcdr 4 ichiran/conn:*connection*) :port)
+                       :pooled-p nil
+                       :use-ssl (getf (nthcdr 4 ichiran/conn:*connection*) :use-ssl)
+                       :application-name (getf (nthcdr 4 ichiran/conn:*connection*) :application-name))
+               ,@body)
            (cl-postgres:database-connection-error (e)
              (format t "~&Database connection error: ~A~%" e)
-             ;; Clear the pool again if we got a connection error
-             (postmodern:clear-connection-pool)
              (setf (hunchentoot:return-code*) 503)
              (json-response 
               (jsown:new-js
@@ -98,11 +93,24 @@
 
 (defun health-check ()
   (setf (hunchentoot:content-type*) "application/json")
-  (if *server-ready*
-      "{\"status\": \"ok\"}"
-      (progn
-        (setf (hunchentoot:return-code*) 503)
-        "{\"status\": \"initializing\"}")))
+  (handler-case
+      (with-thread-connection
+        (if (and *server-ready*
+                 ;; Test full analysis path including dictionary lookups
+                 (multiple-value-bind (romaji info) 
+                     (romanize* "テスト" :with-info t)
+                   (and romaji info)))
+            "{\"status\": \"ok\"}"
+            (progn
+              (setf (hunchentoot:return-code*) 503)
+              "{\"status\": \"service unavailable\"}")))
+    (error (e)
+      (format t "~&Health check failed: ~A~%" e)
+      (setf (hunchentoot:return-code*) 503)
+      (jsown:to-json
+       (jsown:new-js
+         ("status" "error")
+         ("message" (princ-to-string e)))))))
 
 (defun start-server (&key (port *default-port*))
   (when *server*
