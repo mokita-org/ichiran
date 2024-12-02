@@ -43,7 +43,7 @@
      (sb-thread:wait-on-semaphore *request-semaphore*)
      (unwind-protect
          (handler-case
-             (postmodern:with-connection* 
+             (postmodern:with-connection
                  (list (first ichiran/conn:*connection*)
                        (second ichiran/conn:*connection*)
                        (third ichiran/conn:*connection*)
