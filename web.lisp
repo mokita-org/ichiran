@@ -6,7 +6,7 @@
 
 (defvar *server* nil)
 (defvar *default-port* 8080)
-(defparameter *max-concurrent-requests* 25)
+(defparameter *max-concurrent-requests* 100)
 (defparameter *request-semaphore* (sb-thread:make-semaphore :count *max-concurrent-requests*))
 (defparameter *server-ready* nil)
 
@@ -117,6 +117,7 @@
     (stop-server))
   (setf *server-ready* nil)
   (ichiran/conn:load-settings :keep-connection t)
+  (postmodern:clear-connection-pool)
   (setf *server* 
         (make-instance 'ichiran-acceptor 
                       :port port
