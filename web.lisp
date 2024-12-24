@@ -43,15 +43,7 @@
      (sb-thread:wait-on-semaphore *request-semaphore*)
      (unwind-protect
          (handler-case
-             (postmodern:with-connection
-                 (list (first ichiran/conn:*connection*)
-                       (second ichiran/conn:*connection*)
-                       (third ichiran/conn:*connection*)
-                       (fourth ichiran/conn:*connection*)
-                       :port (getf (nthcdr 4 ichiran/conn:*connection*) :port)
-                       :pooled-p nil
-                       :use-ssl (getf (nthcdr 4 ichiran/conn:*connection*) :use-ssl)
-                       :application-name (getf (nthcdr 4 ichiran/conn:*connection*) :application-name))
+             (postmodern:with-transaction ()
                ,@body)
            (cl-postgres:database-connection-error (e)
              (format t "~&Database connection error: ~A~%" e)

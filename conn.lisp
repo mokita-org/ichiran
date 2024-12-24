@@ -24,11 +24,19 @@
 (register-sql-operators :2+-ary (:=== "IS NOT DISTINCT FROM"))
 (register-sql-operators :2+-ary (:=/= "IS DISTINCT FROM"))
 
+(defun get-connection-spec (base-spec)
+  "Enhance connection spec with PgBouncer-compatible settings"
+  (append base-spec
+          (list :pooled-p nil  ; Don't use Postmodern's pooling
+                :use-binary nil ; Use text protocol for better compatibility
+                :application-name "ichiran"))) ; Consistent app name
+
 (defun get-spec (dbid)
-  (cond ((not dbid) *connection*)
-        ((listp dbid) dbid)
+  (cond ((not dbid) (get-connection-spec *connection*))
+        ((listp dbid) (get-connection-spec dbid))
         (t (let ((spec (cdr (assoc dbid *connections*))))
-             (if spec spec
+             (if spec 
+                 (get-connection-spec spec)
                  (error "Invalid connection!"))))))
 
 (defmacro let-db (dbid &body body)
