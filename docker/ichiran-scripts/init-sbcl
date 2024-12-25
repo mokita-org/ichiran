@@ -10,10 +10,12 @@ ros run \
      --eval "(ql:quickload :ichiran/web)" \
      --eval "(format t \"~%Verifying packages...~%\")" \
      --eval "(format t \"Packages loaded: ~a~%\" (find-package :ichiran/web))" \
+     --eval "(format t \"~%Adding errata...~%\")" \
      --eval "(ichiran/mnt:add-errata)" \
+     --eval "(format t \"~%Adding caches...~%\")" \
      --eval "(in-package :ichiran/all)" \
      --eval "(init-all-caches)" \
      --eval "(init-suffixes t)" \
      --eval "(postmodern:clear-connection-pool)" \
-     --eval "(format t \"~%Saving core file...~%\")" \
+     --eval "(format t \"~%Saving finalizing...~%\")" \
      --eval "(uiop:dump-image \"/root/ichiran.core\" :executable t :compression t)"
