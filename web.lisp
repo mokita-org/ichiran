@@ -44,8 +44,7 @@
      (unwind-protect
          (handler-case
              (postmodern:with-connection ichiran/conn:*connection*
-               (postmodern:with-transaction ()
-                 ,@body))
+               ,@body)
            (cl-postgres:database-connection-error (e)
              (format t "~&Database connection error: ~A~%" e)
              (setf (hunchentoot:return-code*) 503)
