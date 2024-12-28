@@ -10,8 +10,8 @@ ros run \
      --eval "(ql:quickload :ichiran/web)" \
      --eval "(format t \"~%Verifying packages...~%\")" \
      --eval "(format t \"Packages loaded: ~a~%\" (find-package :ichiran/web))" \
-     --eval "(format t \"~%Adding errata...~%\")" \
-     --eval "(ichiran/mnt:add-errata)" \
+     # --eval "(format t \"~%Adding errata...~%\")" \
+     # --eval "(ichiran/mnt:add-errata)" \
      --eval "(format t \"~%Adding caches...~%\")" \
      --eval "(in-package :ichiran/all)" \
      --eval "(init-all-caches)" \
